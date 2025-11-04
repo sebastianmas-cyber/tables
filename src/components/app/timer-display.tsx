@@ -21,7 +21,7 @@ export function TimerDisplay({
   const phaseText = () => {
     switch(phase) {
       case 'prep':
-        return 'RECOVERY (Breathe Slowly)';
+        return 'RECOVERY';
       case 'hold':
         return 'HOLD';
       case 'finished':
@@ -36,9 +36,9 @@ export function TimerDisplay({
   const phaseColor = () => {
      switch(phase) {
       case 'prep':
-        return 'text-green-400'; // status-prep
+        return 'text-green-400';
       case 'hold':
-        return 'text-red-400'; // status-hold
+        return 'text-red-400';
       default:
         return 'text-white';
     }
@@ -47,23 +47,23 @@ export function TimerDisplay({
   const isEnding = timeRemaining <= 3 && timeRemaining > 0;
 
   return (
-    <div className="w-full flex flex-col items-center justify-center p-8 bg-card rounded-xl shadow-2xl border-0 space-y-4">
-       <div className="flex justify-center items-center space-x-2 text-xl font-medium text-gray-400">
+    <div className="w-full flex flex-col items-center justify-center p-8 bg-card rounded-xl shadow-2xl border border-border space-y-4">
+       <div className="flex justify-center items-center space-x-3 text-xl font-medium text-gray-400 h-7">
           { phase !== 'finished' && phase !== 'ready' ? (
             <>
               <span>Round {currentRound} / {totalRounds}</span>
               <span className="text-gray-600">•</span>
-              <span>Hold: {formatTime(holdTarget)}</span>
+              <span>Target: {formatTime(holdTarget)}</span>
             </>
-          ) : <div className="h-6"/>}
+          ) : null}
        </div>
 
-      <p className={cn("text-2xl font-semibold", phaseColor())}>
+      <p className={cn("text-3xl font-semibold uppercase tracking-widest", phaseColor())}>
         {phaseText()}
       </p>
       <div
         className={cn(
-          'text-7xl font-bold font-mono tabular-nums transition-colors duration-300',
+          'text-8xl font-bold font-mono tabular-nums transition-colors duration-300',
            phaseColor(),
            isEnding && 'animate-pulse'
         )}

@@ -10,17 +10,18 @@ const NUM_ROUNDS = 8;
  */
 export function generateCo2Table(personalBestInSeconds: number): TrainingRound[] {
   const table: TrainingRound[] = [];
-  const holdTime = Math.max(45, Math.round(personalBestInSeconds * 0.66));
-  const startPrepTime = holdTime + 60;
+  // Use a slightly lower percentage for more accessible tables.
+  const holdTime = Math.max(30, Math.round(personalBestInSeconds * 0.60));
+  // Start with a longer recovery and decrease it.
+  const startPrepTime = holdTime + 75;
   const decreaseStep = 15;
 
   for (let i = 1; i <= NUM_ROUNDS; i++) {
-    const prepTime = Math.max(15, startPrepTime - ((i-1) * decreaseStep));
+    const prepTime = Math.max(30, startPrepTime - ((i-1) * decreaseStep));
     table.push({
       round: i,
       prep: prepTime,
       hold: holdTime,
-      recovery: 0, // Recovery is handled as the prep time for the next round
     });
   }
 
@@ -35,7 +36,7 @@ export function generateCo2Table(personalBestInSeconds: number): TrainingRound[]
  */
 export function generateO2Table(personalBestInSeconds: number): TrainingRound[] {
   const table: TrainingRound[] = [];
-  const startHoldTime = Math.max(30, Math.round(personalBestInSeconds * 0.5));
+  const startHoldTime = Math.max(45, Math.round(personalBestInSeconds * 0.5));
   const recoveryTime = 120; // 2 minutes
   const holdIncrement = 10;
 
@@ -44,7 +45,6 @@ export function generateO2Table(personalBestInSeconds: number): TrainingRound[] 
       round: i,
       prep: recoveryTime,
       hold: startHoldTime + ((i-1) * holdIncrement),
-      recovery: 0, // Recovery is handled as the prep time for the next round
     });
   }
   

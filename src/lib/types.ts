@@ -1,8 +1,7 @@
-export type TrainingPhase = 'prep' | 'hold' | 'recovery';
+export type TrainingPhase = 'prep' | 'hold';
 
 export type TrainingRound = {
   round: number;
   prep: number;
   hold: number;
-  recovery: number; // This is now implicit, but kept for type consistency
 };
