@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import * as Tone from 'tone';
 import {
-  Clock,
   Play,
   Square,
   Zap,
@@ -85,11 +84,13 @@ export function TrainingController() {
   });
 
   React.useEffect(() => {
-    synth.current = new Tone.Synth({
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
-    }).toDestination();
-
+    // Tone.js can only be initialized on the client side.
+    if (typeof window !== 'undefined') {
+        synth.current = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
+        }).toDestination();
+    }
     return () => {
       synth.current?.dispose();
     };
@@ -109,39 +110,50 @@ export function TrainingController() {
   const advancePhase = React.useCallback(() => {
     if (!tableData) return;
 
-    let nextPhase = currentPhase;
+    let nextPhase: TrainingPhase | 'finished' = currentPhase;
     let nextRoundIndex = currentRoundIndex;
 
-    if (currentPhase === 'prep') nextPhase = 'hold';
-    else if (currentPhase === 'hold') nextPhase = 'recovery';
-    else if (currentPhase === 'recovery') {
-      nextPhase = 'prep';
-      nextRoundIndex++;
+    if (currentPhase === 'prep') {
+        nextPhase = 'hold';
+    } else if (currentPhase === 'hold') {
+        nextPhase = 'recovery';
+    } else if (currentPhase === 'recovery') {
+        nextPhase = 'prep';
+        nextRoundIndex++;
     }
 
-    if (nextRoundIndex >= tableData.length || tableData[nextRoundIndex].recovery === 0 && currentPhase === 'hold') {
+    if (nextRoundIndex >= tableData.length || (tableData[nextRoundIndex].recovery === 0 && currentPhase === 'hold')) {
       setIsSessionActive(false);
+      setCurrentPhase('finished');
       return;
     }
     
     const nextRound = tableData[nextRoundIndex];
-    const nextDuration = nextRound[nextPhase];
+    const nextDuration = nextRound[nextPhase as TrainingPhase];
 
-    setCurrentPhase(nextPhase);
+    setCurrentPhase(nextPhase as TrainingPhase);
     setCurrentRoundIndex(nextRoundIndex);
     setTimeRemaining(nextDuration);
     playStartSound();
   }, [currentPhase, currentRoundIndex, tableData]);
 
+
   React.useEffect(() => {
-    if (isSessionActive && timeRemaining === 0) {
+    let active = isSessionActive;
+
+    if (active && timeRemaining === 0) {
       playEndSound();
       advancePhase();
     }
-  }, [isSessionActive, timeRemaining, advancePhase]);
+    
+    return () => { active = false };
+  }, [isSessionActive, timeRemaining, advancePhase, playEndSound]);
 
   React.useEffect(() => {
-    if (!isSessionActive || timeRemaining <= 0) return;
+    if (!isSessionActive || timeRemaining <= 0) {
+      if (timerId.current) clearTimeout(timerId.current);
+      return;
+    }
 
     timerId.current = setTimeout(() => {
       setTimeRemaining(timeRemaining - 1);
@@ -153,7 +165,7 @@ export function TrainingController() {
     return () => {
       if (timerId.current) clearTimeout(timerId.current);
     };
-  }, [isSessionActive, timeRemaining]);
+  }, [isSessionActive, timeRemaining, playTickSound]);
 
   function onSubmit(data: FormValues) {
     const totalSeconds = data.minutes * 60 + data.seconds;
@@ -162,6 +174,10 @@ export function TrainingController() {
         ? generateCo2Table(totalSeconds)
         : generateO2Table(totalSeconds);
     setTableData(newTable);
+    // Reset session state if a new table is generated
+    setIsSessionActive(false);
+    setCurrentRoundIndex(0);
+    setCurrentPhase('prep');
   }
 
   const startSession = () => {
@@ -173,10 +189,18 @@ export function TrainingController() {
     playStartSound();
   };
 
-  const confirmStopSession = () => {
+  const stopSession = () => {
     setIsSessionActive(false);
     setShowStopModal(false);
     if (timerId.current) clearTimeout(timerId.current);
+    // Do not reset table data, just the session
+    setCurrentRoundIndex(0);
+    setCurrentPhase('prep');
+    setTimeRemaining(0);
+  };
+  
+  const confirmStopSession = () => {
+    stopSession();
   };
 
   const SetupView = () => (
@@ -185,6 +209,7 @@ export function TrainingController() {
       onValueChange={(v) => {
         setTableType(v as 'co2' | 'o2');
         setTableData(null);
+        form.reset();
       }}
       className="w-full"
     >
@@ -252,11 +277,7 @@ export function TrainingController() {
   const SessionView = () => (
     <div className="space-y-8">
       <TimerDisplay
-        phase={
-          !isSessionActive && currentRoundIndex >= (tableData?.length ?? 0)
-            ? 'finished'
-            : currentPhase
-        }
+        phase={ currentPhase }
         timeRemaining={timeRemaining}
         currentRound={currentRoundIndex + 1}
         totalRounds={tableData?.length ?? 0}
@@ -272,12 +293,34 @@ export function TrainingController() {
       </div>
     </div>
   );
+  
+    const isFinished = !isSessionActive && currentPhase === 'finished' && tableData !== null;
+
+    if (isFinished) {
+        return (
+            <div className="w-full space-y-8 text-center">
+                 <TimerDisplay
+                    phase={'finished'}
+                    timeRemaining={0}
+                    currentRound={tableData?.length ?? 0}
+                    totalRounds={tableData?.length ?? 0}
+                />
+                <Button size="lg" onClick={() => {
+                    setTableData(null);
+                    setCurrentPhase('prep');
+                }}>
+                    Create New Table
+                </Button>
+            </div>
+        );
+    }
+
 
   return (
     <section className="w-full">
-      {!isSessionActive ? <SetupView /> : <SessionView />}
+      {isSessionActive ? <SessionView /> : <SetupView />}
 
-      {tableData && (
+      {tableData && !isSessionActive && (
         <div className="mt-8">
           <h3 className="text-2xl font-semibold mb-4 text-center">
             Your Training Table
@@ -310,13 +353,13 @@ export function TrainingController() {
               </Table>
             </CardContent>
           </Card>
-          {!isSessionActive && (
-            <div className="mt-6 flex justify-center">
-              <Button size="lg" onClick={startSession}>
-                <Play className="mr-2 h-5 w-5" /> Start Session
-              </Button>
-            </div>
-          )}
+          
+          <div className="mt-6 flex justify-center">
+            <Button size="lg" onClick={startSession}>
+              <Play className="mr-2 h-5 w-5" /> Start Session
+            </Button>
+          </div>
+
         </div>
       )}
 

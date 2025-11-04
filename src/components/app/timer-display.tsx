@@ -34,7 +34,7 @@ export function TimerDisplay({
       <div
         className={cn(
           'text-8xl sm:text-9xl font-mono tabular-nums text-primary transition-all duration-500 ease-in-out',
-          isEnding && 'scale-110 text-accent animate-pulse'
+          isEnding && 'scale-110 text-destructive animate-pulse'
         )}
       >
         {formatTime(timeRemaining)}
