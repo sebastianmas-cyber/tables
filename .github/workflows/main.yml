@@ -1,0 +1,39 @@
+# .github/workflows/main.yml
+
+name: Deploy to Firebase App Hosting
+
+on:
+  push:
+    branches:
+      - main # This workflow runs on pushes to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # This action authenticates with Google Cloud using your repository's secrets.
+      # You would need to set up a Service Account and Workload Identity Federation in GCP.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # The Firebase CLI is used to deploy the application.
+      - name: Deploy to Firebase App Hosting
+        uses: firebase/actions/setup-and-deploy@v1
+        with:
+          # Your Firebase project ID
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          # The ID of your App Hosting backend
+          backendId: ${{ secrets.APP_HOSTING_BACKEND_ID }}
+          # The GitHub secret that contains your service account key
+          # This is an alternative to Workload Identity Federation
+          # serviceAccountKey: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
